@@ -168,7 +168,7 @@ const LEGS = [
    dep:'02 Sep · 23:40',arr:'03 Sep · 07:40',duration:'~5h 30m',cls:'',depTerm:'Mumbai T2',arrTerm:'Changi T1'},
   {from:'SIN',to:'DOH',airline:'Qatar Airways',flight:'QR943',aircraft:'Airbus A350-900',
    dep:'06 Sep · 10:20',arr:'06 Sep · 12:40',duration:'7h 20m',cls:'Business · Qsuite · Seat 3A',depTerm:'Changi T1',arrTerm:'Hamad Intl'},
-  {from:'DOH',to:'ATL',airline:'Qatar Airways',flight:'QR · PNR 9TT858',aircraft:'—',
+  {from:'DOH',to:'ATL',airline:'Qatar Airways',flight:'QR · PNR 9TT858',aircraft:'Airbus A350-1000',
    dep:'11 Sep · 08:00',arr:'11 Sep · 15:55',duration:'15h 55m',cls:'Business',depTerm:'Hamad Intl',arrTerm:'Atlanta T-I'},
 ];
 
@@ -208,9 +208,9 @@ const world = Globe()
   .arcColor(()=>[ '#5ec8ff', '#a98bff', '#ff5e8a' ])
   .arcStroke(0.6)
   .arcAltitudeAutoScale(0.45)
-  .arcDashLength(0.55)
-  .arcDashGap(0.18)
-  .arcDashAnimateTime(2600)
+  .arcDashLength(1)
+  .arcDashGap(0)
+  .arcDashAnimateTime(0)
   .arcLabel(d=>arcTooltip(d.leg))
 
   // Airport points (glowing rings)

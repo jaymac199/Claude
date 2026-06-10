@@ -15,7 +15,7 @@ Atlanta → London → Mumbai → Singapore → Doha → Atlanta
 | 2 | LHR → BOM | Virgin Atlantic VS0358 | Boeing 787-9 | 27 Aug 12:25 | 28 Aug 02:10 |
 | 3 | BOM → SIN | Singapore Airlines SQ423 | Airbus A380-800 | 02 Sep 23:40 | 03 Sep 07:40 |
 | 4 | SIN → DOH | Qatar Airways QR943 | Airbus A350-900 | 06 Sep 10:20 | 06 Sep 12:40 |
-| 5 | DOH → ATL | Qatar Airways (PNR 9TT858) | — | 11 Sep 08:00 | 11 Sep 15:55 |
+| 5 | DOH → ATL | Qatar Airways (PNR 9TT858) | Airbus A350-1000 | 11 Sep 08:00 | 11 Sep 15:55 |
 
 ## Features
 - **Animated 3D globe** (night-earth texture) with a starfield background.
@@ -34,3 +34,4 @@ Atlanta → London → Mumbai → Singapore → Doha → Atlanta
 - The DOH → ATL flight number wasn't printed on the booking summary, so it shows
   the booking reference (PNR 9TT858) instead. Airport coordinates are the
   published lat/long for each international airport.
+- `poster.png` is a print-ready route poster generated from the same itinerary.
