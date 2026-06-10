@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>My Trip Around the World · Interactive Globe</title>
+<style>
+  :root{
+    --bg:#05070d;
+    --panel:rgba(13,18,30,0.82);
+    --panel-border:rgba(120,160,255,0.18);
+    --accent:#5ec8ff;
+    --accent2:#ff5e8a;
+    --text:#e9eef7;
+    --muted:#93a1bd;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;}
+  #globeViz{position:fixed;inset:0;}
+
+  /* ---- Header ---- */
+  .topbar{
+    position:fixed;top:0;left:0;right:0;z-index:20;
+    display:flex;align-items:center;gap:14px;
+    padding:16px 22px;
+    background:linear-gradient(180deg,rgba(5,7,13,0.85) 0%,rgba(5,7,13,0) 100%);
+    pointer-events:none;
+  }
+  .topbar h1{font-size:18px;font-weight:650;margin:0;letter-spacing:.2px}
+  .topbar .sub{font-size:12.5px;color:var(--muted);margin-top:2px}
+  .badge{
+    pointer-events:none;
+    font-size:11px;color:var(--accent);
+    border:1px solid var(--panel-border);border-radius:999px;
+    padding:4px 11px;background:var(--panel);backdrop-filter:blur(8px);
+    white-space:nowrap;
+  }
+
+  /* ---- Itinerary panel ---- */
+  .panel{
+    position:fixed;top:78px;left:18px;z-index:20;
+    width:330px;max-width:calc(100vw - 36px);
+    max-height:calc(100vh - 110px);
+    overflow:auto;
+    background:var(--panel);backdrop-filter:blur(14px);
+    border:1px solid var(--panel-border);border-radius:16px;
+    padding:14px 14px 8px;
+    box-shadow:0 18px 50px rgba(0,0,0,.5);
+  }
+  .panel h2{font-size:12px;text-transform:uppercase;letter-spacing:1.4px;
+    color:var(--muted);margin:2px 4px 12px}
+  .leg{
+    display:block;width:100%;text-align:left;cursor:pointer;
+    border:1px solid transparent;border-radius:12px;
+    background:rgba(255,255,255,0.025);
+    padding:11px 12px;margin-bottom:9px;color:inherit;
+    transition:border-color .18s, background .18s, transform .18s;
+  }
+  .leg:hover{border-color:var(--panel-border);background:rgba(94,200,255,0.08);transform:translateY(-1px)}
+  .leg.active{border-color:var(--accent);background:rgba(94,200,255,0.12)}
+  .leg .route{display:flex;align-items:center;gap:8px;font-size:16px;font-weight:650}
+  .leg .route .arrow{color:var(--accent);font-size:14px}
+  .leg .meta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.5}
+  .leg .pill{display:inline-block;font-size:10.5px;color:var(--text);
+    background:rgba(94,200,255,0.14);border-radius:6px;padding:1px 7px;margin-top:6px}
+  .leg .dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:2px}
+
+  .footer{font-size:11px;color:var(--muted);padding:8px 6px 6px;text-align:center}
+
+  /* ---- Flight info tooltip card ---- */
+  .info-card{
+    font-family:inherit;color:var(--text);
+    background:rgba(10,14,24,0.94);
+    border:1px solid var(--panel-border);border-radius:12px;
+    padding:11px 13px;min-width:210px;max-width:260px;
+    box-shadow:0 12px 34px rgba(0,0,0,.55);
+  }
+  .info-card .ic-code{font-size:18px;font-weight:700;letter-spacing:.5px}
+  .info-card .ic-city{font-size:12px;color:var(--muted);margin-bottom:8px}
+  .info-card .ic-row{font-size:12px;margin:3px 0;display:flex;justify-content:space-between;gap:14px}
+  .info-card .ic-row .k{color:var(--muted)}
+  .info-card .ic-tag{display:inline-block;font-size:10.5px;color:var(--accent);
+    border:1px solid var(--panel-border);border-radius:6px;padding:1px 6px;margin-top:6px}
+
+  /* ---- Airport label on globe ---- */
+  .ap-label{
+    font-family:inherit;font-size:11px;font-weight:600;color:#fff;
+    text-shadow:0 1px 4px #000, 0 0 8px rgba(0,0,0,.8);
+    pointer-events:none;white-space:nowrap;
+    transform:translateY(-14px);
+  }
+
+  /* ---- Controls hint ---- */
+  .hint{
+    position:fixed;bottom:14px;right:18px;z-index:20;
+    font-size:11px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--panel-border);
+    border-radius:999px;padding:6px 13px;backdrop-filter:blur(8px);
+  }
+  .legend{
+    position:fixed;bottom:14px;left:18px;z-index:20;
+    display:flex;gap:14px;align-items:center;
+    font-size:11px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--panel-border);
+    border-radius:999px;padding:6px 14px;backdrop-filter:blur(8px);
+  }
+  .legend .swatch{width:14px;height:3px;border-radius:2px;display:inline-block;margin-right:5px;vertical-align:middle}
+
+  ::-webkit-scrollbar{width:8px}
+  ::-webkit-scrollbar-thumb{background:rgba(120,160,255,0.25);border-radius:8px}
+
+  @media (max-width:560px){
+    .panel{top:auto;bottom:64px;left:10px;right:10px;width:auto;max-height:42vh}
+    .legend{display:none}
+  }
+  .loading{
+    position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:30;color:var(--muted);font-size:14px;background:var(--bg);
+  }
+</style>
+</head>
+<body>
+<div class="loading" id="loading">Spinning up the globe…</div>
+
+<div class="topbar">
+  <div>
+    <h1>✈︎ My Trip Around the World</h1>
+    <div class="sub">Garfield A. McIntyre Jr · Aug 24 – Sep 11, 2026 · 5 flights · 4 continents</div>
+  </div>
+  <div style="flex:1"></div>
+  <div class="badge">Atlanta → London → Mumbai → Singapore → Doha → Atlanta</div>
+</div>
+
+<div class="panel" id="panel">
+  <h2>Itinerary — click a flight</h2>
+  <div id="legList"></div>
+  <div class="footer">Hover a glowing point on the globe for airport &amp; flight details.</div>
+</div>
+
+<div class="legend">
+  <span><span class="swatch" style="background:#5ec8ff"></span>Flight path</span>
+  <span><span class="swatch" style="background:#ff5e8a;width:8px;height:8px;border-radius:50%"></span>Airport</span>
+</div>
+<div class="hint">Drag to rotate · scroll to zoom</div>
+
+<div id="globeViz"></div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/globe.gl@2.34.0/dist/globe.gl.min.js"></script>
+<script>
+/* ---------------- Trip data (extracted from booking PDFs) ---------------- */
+const AIRPORTS = {
+  ATL:{code:'ATL',city:'Atlanta',name:'Hartsfield–Jackson Atlanta Intl',country:'USA',lat:33.6407,lng:-84.4277},
+  LHR:{code:'LHR',city:'London',name:'London Heathrow (T3)',country:'UK',lat:51.4700,lng:-0.4543},
+  BOM:{code:'BOM',city:'Mumbai',name:'Chhatrapati Shivaji Maharaj Intl (T2)',country:'India',lat:19.0896,lng:72.8656},
+  SIN:{code:'SIN',city:'Singapore',name:'Singapore Changi (T1)',country:'Singapore',lat:1.3644,lng:103.9915},
+  DOH:{code:'DOH',city:'Doha',name:'Hamad International',country:'Qatar',lat:25.2731,lng:51.6080},
+};
+
+const LEGS = [
+  {from:'ATL',to:'LHR',airline:'Virgin Atlantic',flight:'VS0104',aircraft:'Airbus A350-1000',
+   dep:'24 Aug · 18:15',arr:'25 Aug · 07:15',duration:'8h 00m',cls:'',depTerm:'ATL International Terminal',arrTerm:'Heathrow T3'},
+  {from:'LHR',to:'BOM',airline:'Virgin Atlantic',flight:'VS0358',aircraft:'Boeing 787-9',
+   dep:'27 Aug · 12:25',arr:'28 Aug · 02:10',duration:'9h 15m',cls:'',depTerm:'Heathrow T3',arrTerm:'Mumbai T2'},
+  {from:'BOM',to:'SIN',airline:'Singapore Airlines',flight:'SQ423',aircraft:'Airbus A380-800',
+   dep:'02 Sep · 23:40',arr:'03 Sep · 07:40',duration:'~5h 30m',cls:'',depTerm:'Mumbai T2',arrTerm:'Changi T1'},
+  {from:'SIN',to:'DOH',airline:'Qatar Airways',flight:'QR943',aircraft:'Airbus A350-900',
+   dep:'06 Sep · 10:20',arr:'06 Sep · 12:40',duration:'7h 20m',cls:'Business · Qsuite · Seat 3A',depTerm:'Changi T1',arrTerm:'Hamad Intl'},
+  {from:'DOH',to:'ATL',airline:'Qatar Airways',flight:'QR · PNR 9TT858',aircraft:'—',
+   dep:'11 Sep · 08:00',arr:'11 Sep · 15:55',duration:'15h 55m',cls:'Business',depTerm:'Hamad Intl',arrTerm:'Atlanta T-I'},
+];
+
+/* ---------------- Build derived structures ---------------- */
+const order = ['ATL','LHR','BOM','SIN','DOH']; // unique visit order
+const stopNumber = {ATL:1,LHR:2,BOM:3,SIN:4,DOH:5};
+
+const arcs = LEGS.map((l,i)=>({
+  startLat:AIRPORTS[l.from].lat, startLng:AIRPORTS[l.from].lng,
+  endLat:AIRPORTS[l.to].lat,   endLng:AIRPORTS[l.to].lng,
+  leg:l, idx:i
+}));
+
+const points = order.map(code=>{
+  const a = AIRPORTS[code];
+  // outbound leg departing from this airport (for the info card)
+  const outLeg = LEGS.find(l=>l.from===code);
+  return {...a, outLeg};
+});
+
+/* ---------------- Globe ---------------- */
+const ACCENT = '#5ec8ff', ACCENT2 = '#ff5e8a';
+
+const world = Globe()
+  (document.getElementById('globeViz'))
+  .globeImageUrl('https://unpkg.com/three-globe@2.34.4/example/img/earth-night.jpg')
+  .bumpImageUrl('https://unpkg.com/three-globe@2.34.4/example/img/earth-topology.png')
+  .backgroundImageUrl('https://unpkg.com/three-globe@2.34.4/example/img/night-sky.png')
+  .showAtmosphere(true)
+  .atmosphereColor('#3a6ea5')
+  .atmosphereAltitude(0.22)
+
+  // Flight path arcs
+  .arcsData(arcs)
+  .arcStartLat(d=>d.startLat).arcStartLng(d=>d.startLng)
+  .arcEndLat(d=>d.endLat).arcEndLng(d=>d.endLng)
+  .arcColor(()=>[ '#5ec8ff', '#a98bff', '#ff5e8a' ])
+  .arcStroke(0.6)
+  .arcAltitudeAutoScale(0.45)
+  .arcDashLength(0.55)
+  .arcDashGap(0.18)
+  .arcDashAnimateTime(2600)
+  .arcLabel(d=>arcTooltip(d.leg))
+
+  // Airport points (glowing rings)
+  .pointsData(points)
+  .pointLat('lat').pointLng('lng')
+  .pointColor(()=>ACCENT2)
+  .pointAltitude(0.012)
+  .pointRadius(0.32)
+  .pointLabel(d=>pointTooltip(d))
+
+  // Pulsing rings under each airport
+  .ringsData(points)
+  .ringLat('lat').ringLng('lng')
+  .ringColor(()=>t=>`rgba(255,94,138,${1-t})`)
+  .ringMaxRadius(2.6)
+  .ringPropagationSpeed(1.4)
+  .ringRepeatPeriod(1400)
+
+  // Airport code labels
+  .labelsData(points)
+  .labelLat('lat').labelLng('lng')
+  .labelText('code')
+  .labelSize(1.3)
+  .labelDotRadius(0.3)
+  .labelColor(()=>'rgba(255,255,255,0.92)')
+  .labelResolution(2)
+  .labelAltitude(0.013);
+
+world.controls().autoRotate = true;
+world.controls().autoRotateSpeed = 0.45;
+world.controls().enableDamping = true;
+
+// Initial camera framing (centred over the Atlantic / Europe to show the loop)
+world.pointOfView({lat:30, lng:25, altitude:2.4}, 0);
+
+window.addEventListener('resize',()=>{
+  world.width(window.innerWidth); world.height(window.innerHeight);
+});
+
+document.querySelector('iframe, canvas'); // noop
+// hide loader once globe image likely loaded
+setTimeout(()=>{ const l=document.getElementById('loading'); if(l) l.style.display='none'; }, 1200);
+
+/* ---------------- Tooltips ---------------- */
+function pointTooltip(a){
+  const l = a.outLeg;
+  let flightHtml = '';
+  if(l){
+    flightHtml = `
+      <div class="ic-tag">Departing flight</div>
+      <div class="ic-row"><span class="k">Flight</span><span>${l.airline} ${l.flight}</span></div>
+      <div class="ic-row"><span class="k">To</span><span>${AIRPORTS[l.to].city} (${l.to})</span></div>
+      <div class="ic-row"><span class="k">Aircraft</span><span>${l.aircraft}</span></div>
+      <div class="ic-row"><span class="k">Departs</span><span>${l.dep}</span></div>`;
+  } else {
+    flightHtml = `<div class="ic-tag">Final arrival · journey complete</div>`;
+  }
+  return `<div class="info-card">
+    <div class="ic-code">${a.code} · Stop ${stopNumber[a.code]}</div>
+    <div class="ic-city">${a.name} — ${a.city}, ${a.country}</div>
+    ${flightHtml}
+  </div>`;
+}
+
+function arcTooltip(l){
+  return `<div class="info-card">
+    <div class="ic-code">${l.from} → ${l.to}</div>
+    <div class="ic-city">${l.airline} · ${l.flight}</div>
+    <div class="ic-row"><span class="k">Aircraft</span><span>${l.aircraft}</span></div>
+    <div class="ic-row"><span class="k">Depart</span><span>${l.dep}</span></div>
+    <div class="ic-row"><span class="k">Arrive</span><span>${l.arr}</span></div>
+    <div class="ic-row"><span class="k">Duration</span><span>${l.duration}</span></div>
+    ${l.cls?`<div class="ic-tag">${l.cls}</div>`:''}
+  </div>`;
+}
+
+/* ---------------- Side itinerary list ---------------- */
+const legList = document.getElementById('legList');
+LEGS.forEach((l,i)=>{
+  const btn = document.createElement('button');
+  btn.className='leg'; btn.dataset.idx=i;
+  btn.innerHTML = `
+    <div class="route"><span>${l.from}</span><span class="arrow">✈</span><span>${l.to}</span></div>
+    <div class="meta">
+      ${AIRPORTS[l.from].city} → ${AIRPORTS[l.to].city}<br>
+      <strong style="color:#cfe4ff">${l.airline} ${l.flight}</strong> · ${l.aircraft}<br>
+      ${l.dep} → ${l.arr} &nbsp;·&nbsp; ${l.duration}
+    </div>
+    ${l.cls?`<span class="pill">${l.cls}</span>`:''}`;
+  btn.addEventListener('click',()=>focusLeg(i,btn));
+  legList.appendChild(btn);
+});
+
+function focusLeg(i,btn){
+  document.querySelectorAll('.leg').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const l = LEGS[i];
+  const a = AIRPORTS[l.from], b = AIRPORTS[l.to];
+  const midLat = (a.lat+b.lat)/2;
+  let dLng = b.lng - a.lng;
+  if(Math.abs(dLng)>180) dLng -= Math.sign(dLng)*360;
+  const midLng = a.lng + dLng/2;
+  world.controls().autoRotate = false;
+  world.pointOfView({lat:midLat, lng:midLng, altitude:1.9}, 1200);
+  // briefly emphasise this arc
+  world.arcStroke(d=> d.idx===i ? 1.4 : 0.45);
+  setTimeout(()=>world.arcStroke(d=> d.idx===i ? 1.0 : 0.6), 1400);
+}
+
+// Resume gentle rotation if the user drags the globe
+world.controls().addEventListener('start',()=>{ world.controls().autoRotate=false; });
+</script>
+</body>
+</html>
