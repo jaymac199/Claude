@@ -1,8 +1,10 @@
 # My Trip Around the World — Interactive Globe
 
 An interactive 3D globe visualizing a round-the-world trip, built from the
-booking PDFs. Open `index.html` in any modern browser (no build step needed —
-just double-click it, or run a local server).
+booking PDFs. No build step needed — just open the file in a browser.
+
+- **`index.html`** — desktop version (side itinerary panel, hover for details).
+- **`mobile.html`** — phone-optimized version (see *Mobile* below).
 
 ## The trip
 **Garfield A. McIntyre Jr · Aug 24 – Sep 11, 2026 · 5 flights**
@@ -26,6 +28,15 @@ Atlanta → London → Mumbai → Singapore → Doha → Atlanta
   info (airline, flight no., aircraft, times, duration, cabin).
 - **Side itinerary panel** — click any flight to fly the camera to that leg.
 - Drag to rotate, scroll to zoom; the globe auto-rotates until you interact.
+
+## Mobile (`mobile.html`)
+A version tuned for phones, since hover-based tooltips don't work on touch:
+- **Tap** any glowing airport point or flight line to open a slide-up info card
+  (the desktop version uses hover).
+- **Draggable bottom sheet** with the full itinerary — swipe or tap the handle to
+  expand/collapse; tap a flight to zoom the globe to that leg.
+- Larger touch targets, capped pixel ratio for smoother performance, and
+  safe-area + address-bar handling so it fills the screen correctly.
 
 ## Notes
 - Built with [globe.gl](https://github.com/vasturiano/globe.gl) /

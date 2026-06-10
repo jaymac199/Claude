@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#05070d" />
+<title>My Trip · Mobile Globe</title>
+<style>
+  :root{
+    --bg:#05070d;
+    --panel:rgba(13,18,30,0.92);
+    --panel-border:rgba(120,160,255,0.20);
+    --accent:#5ec8ff;
+    --accent2:#ff5e8a;
+    --text:#e9eef7;
+    --muted:#93a1bd;
+    --safe-b:env(safe-area-inset-bottom,0px);
+    --safe-t:env(safe-area-inset-top,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    overflow:hidden;overscroll-behavior:none;touch-action:none;}
+  #globeViz{position:fixed;inset:0;touch-action:none;}
+
+  /* ---------- Compact header ---------- */
+  .m-top{
+    position:fixed;top:0;left:0;right:0;z-index:20;
+    padding:calc(10px + var(--safe-t)) 16px 14px;
+    background:linear-gradient(180deg,rgba(5,7,13,0.9) 0%,rgba(5,7,13,0) 100%);
+    pointer-events:none;text-align:center;
+  }
+  .m-top h1{font-size:16px;font-weight:680;margin:0;letter-spacing:.2px}
+  .m-top .sub{font-size:11px;color:var(--muted);margin-top:2px}
+  .m-top .route{font-size:10.5px;color:var(--accent);margin-top:5px;font-weight:600;line-height:1.4}
+
+  /* ---------- Itinerary bottom sheet ---------- */
+  .sheet{
+    position:fixed;left:0;right:0;bottom:0;z-index:30;
+    height:64vh;
+    background:var(--panel);backdrop-filter:blur(16px);
+    border-top:1px solid var(--panel-border);
+    border-radius:20px 20px 0 0;
+    box-shadow:0 -14px 40px rgba(0,0,0,.55);
+    transform:translateY(calc(64vh - 104px - var(--safe-b)));
+    transition:transform .34s cubic-bezier(.4,0,.2,1);
+    display:flex;flex-direction:column;
+    touch-action:none;
+  }
+  .sheet.open{transform:translateY(0)}
+  .grip-wrap{padding:9px 16px 6px;cursor:grab;flex:0 0 auto}
+  .grip{width:42px;height:5px;border-radius:99px;background:rgba(150,175,220,.5);margin:0 auto}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;
+    padding:2px 18px 10px}
+  .sheet-head h2{font-size:12px;text-transform:uppercase;letter-spacing:1.3px;
+    color:var(--muted);margin:0}
+  .sheet-head .chev{color:var(--muted);font-size:13px;transition:transform .3s}
+  .sheet.open .sheet-head .chev{transform:rotate(180deg)}
+  .sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;
+    padding:0 14px calc(20px + var(--safe-b));flex:1 1 auto;touch-action:pan-y}
+
+  .leg{
+    display:block;width:100%;text-align:left;
+    border:1px solid transparent;border-radius:14px;
+    background:rgba(255,255,255,0.03);
+    padding:13px 14px;margin-bottom:10px;color:inherit;
+    transition:border-color .18s, background .18s;
+    -webkit-appearance:none;font-family:inherit;
+  }
+  .leg:active{background:rgba(94,200,255,0.12)}
+  .leg.active{border-color:var(--accent);background:rgba(94,200,255,0.13)}
+  .leg .route{display:flex;align-items:center;gap:9px;font-size:18px;font-weight:680}
+  .leg .route .arrow{color:var(--accent);font-size:15px}
+  .leg .route .num{margin-left:auto;font-size:11px;color:#fff;background:var(--accent2);
+    width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700}
+  .leg .meta{font-size:12.5px;color:var(--muted);margin-top:5px;line-height:1.55}
+  .leg .pill{display:inline-block;font-size:11px;color:var(--text);
+    background:rgba(94,200,255,0.16);border-radius:7px;padding:2px 9px;margin-top:7px}
+
+  /* ---------- Tap-to-view info sheet ---------- */
+  .info{
+    position:fixed;left:0;right:0;bottom:0;z-index:45;
+    background:rgba(10,14,24,0.97);backdrop-filter:blur(16px);
+    border-top:1px solid var(--panel-border);
+    border-radius:20px 20px 0 0;
+    box-shadow:0 -14px 40px rgba(0,0,0,.6);
+    padding:14px 18px calc(22px + var(--safe-b));
+    transform:translateY(115%);
+    transition:transform .3s cubic-bezier(.4,0,.2,1);
+  }
+  .info.show{transform:translateY(0)}
+  .info .close{position:absolute;top:12px;right:14px;width:32px;height:32px;
+    border-radius:50%;border:1px solid var(--panel-border);background:rgba(255,255,255,.05);
+    color:var(--muted);font-size:17px;line-height:1;display:flex;align-items:center;justify-content:center}
+  .info .ic-code{font-size:22px;font-weight:750;letter-spacing:.4px;padding-right:40px}
+  .info .ic-city{font-size:13px;color:var(--muted);margin:3px 0 12px;padding-right:40px}
+  .info .ic-row{font-size:13.5px;margin:6px 0;display:flex;justify-content:space-between;gap:16px}
+  .info .ic-row .k{color:var(--muted)}
+  .info .ic-tag{display:inline-block;font-size:11.5px;color:var(--accent);
+    border:1px solid var(--panel-border);border-radius:7px;padding:3px 9px;margin-top:10px}
+  .info .focus-btn{margin-top:14px;width:100%;padding:12px;border-radius:12px;
+    border:1px solid var(--accent);background:rgba(94,200,255,0.14);color:var(--accent);
+    font-size:14px;font-weight:650;font-family:inherit}
+  .info .focus-btn:active{background:rgba(94,200,255,0.25)}
+
+  .loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+    z-index:60;color:var(--muted);font-size:14px;background:var(--bg)}
+  ::-webkit-scrollbar{width:0}
+</style>
+</head>
+<body>
+<div class="loading" id="loading">Spinning up the globe…</div>
+
+<div class="m-top">
+  <h1>✈︎ My Trip Around the World</h1>
+  <div class="sub">Garfield A. McIntyre Jr · 24 Aug – 11 Sep 2026 · 5 flights</div>
+  <div class="route">ATL → LHR → BOM → SIN → DOH → ATL</div>
+</div>
+
+<div id="globeViz"></div>
+
+<!-- Itinerary bottom sheet -->
+<div class="sheet" id="sheet">
+  <div class="grip-wrap" id="grip"><div class="grip"></div></div>
+  <div class="sheet-head" id="sheetHead">
+    <h2>Itinerary · tap a flight</h2>
+    <span class="chev">▲</span>
+  </div>
+  <div class="sheet-body" id="legList"></div>
+</div>
+
+<!-- Tap-to-view detail sheet -->
+<div class="info" id="info">
+  <button class="close" id="infoClose" aria-label="Close">✕</button>
+  <div id="infoBody"></div>
+</div>
+
+<script src="https://unpkg.com/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/globe.gl@2.34.0/dist/globe.gl.min.js"></script>
+<script>
+/* ---------------- Trip data (extracted from booking PDFs) ---------------- */
+const AIRPORTS = {
+  ATL:{code:'ATL',city:'Atlanta',name:'Hartsfield–Jackson Atlanta Intl',country:'USA',lat:33.6407,lng:-84.4277},
+  LHR:{code:'LHR',city:'London',name:'London Heathrow (T3)',country:'UK',lat:51.4700,lng:-0.4543},
+  BOM:{code:'BOM',city:'Mumbai',name:'Chhatrapati Shivaji Maharaj Intl (T2)',country:'India',lat:19.0896,lng:72.8656},
+  SIN:{code:'SIN',city:'Singapore',name:'Singapore Changi (T1)',country:'Singapore',lat:1.3644,lng:103.9915},
+  DOH:{code:'DOH',city:'Doha',name:'Hamad International',country:'Qatar',lat:25.2731,lng:51.6080},
+};
+const LEGS = [
+  {from:'ATL',to:'LHR',airline:'Virgin Atlantic',flight:'VS0104',aircraft:'Airbus A350-1000',
+   dep:'24 Aug · 18:15',arr:'25 Aug · 07:15',duration:'8h 00m',cls:''},
+  {from:'LHR',to:'BOM',airline:'Virgin Atlantic',flight:'VS0358',aircraft:'Boeing 787-9',
+   dep:'27 Aug · 12:25',arr:'28 Aug · 02:10',duration:'9h 15m',cls:''},
+  {from:'BOM',to:'SIN',airline:'Singapore Airlines',flight:'SQ423',aircraft:'Airbus A380-800',
+   dep:'02 Sep · 23:40',arr:'03 Sep · 07:40',duration:'~5h 30m',cls:''},
+  {from:'SIN',to:'DOH',airline:'Qatar Airways',flight:'QR943',aircraft:'Airbus A350-900',
+   dep:'06 Sep · 10:20',arr:'06 Sep · 12:40',duration:'7h 20m',cls:'Business · Qsuite · Seat 3A'},
+  {from:'DOH',to:'ATL',airline:'Qatar Airways',flight:'QR · PNR 9TT858',aircraft:'Airbus A350-1000',
+   dep:'11 Sep · 08:00',arr:'11 Sep · 15:55',duration:'15h 55m',cls:'Business'},
+];
+
+const order = ['ATL','LHR','BOM','SIN','DOH'];
+const stopNumber = {ATL:1,LHR:2,BOM:3,SIN:4,DOH:5};
+const arcs = LEGS.map((l,i)=>({
+  startLat:AIRPORTS[l.from].lat, startLng:AIRPORTS[l.from].lng,
+  endLat:AIRPORTS[l.to].lat,   endLng:AIRPORTS[l.to].lng, leg:l, idx:i
+}));
+const points = order.map(code=>({...AIRPORTS[code], outLeg:LEGS.find(l=>l.from===code)}));
+
+/* ---------------- Globe ---------------- */
+const ACCENT='#5ec8ff', ACCENT2='#ff5e8a';
+const el = document.getElementById('globeViz');
+
+const world = Globe()(el)
+  .globeImageUrl('https://unpkg.com/three-globe@2.34.4/example/img/earth-night.jpg')
+  .bumpImageUrl('https://unpkg.com/three-globe@2.34.4/example/img/earth-topology.png')
+  .backgroundImageUrl('https://unpkg.com/three-globe@2.34.4/example/img/night-sky.png')
+  .showAtmosphere(true).atmosphereColor('#3a6ea5').atmosphereAltitude(0.22)
+  .arcsData(arcs)
+  .arcStartLat(d=>d.startLat).arcStartLng(d=>d.startLng)
+  .arcEndLat(d=>d.endLat).arcEndLng(d=>d.endLng)
+  .arcColor(()=>['#5ec8ff','#a98bff','#ff5e8a'])
+  .arcStroke(0.7).arcAltitudeAutoScale(0.45)
+  .arcDashLength(1).arcDashGap(0).arcDashAnimateTime(0)
+  .onArcClick(a=>showLeg(a.idx))
+  .pointsData(points)
+  .pointLat('lat').pointLng('lng').pointColor(()=>ACCENT2)
+  .pointAltitude(0.012).pointRadius(0.55)        /* larger tap target */
+  .onPointClick(p=>showAirport(p))
+  .ringsData(points).ringLat('lat').ringLng('lng')
+  .ringColor(()=>t=>`rgba(255,94,138,${1-t})`)
+  .ringMaxRadius(2.6).ringPropagationSpeed(1.4).ringRepeatPeriod(1400)
+  .labelsData(points).labelLat('lat').labelLng('lng')
+  .labelText('code').labelSize(1.5).labelDotRadius(0.34)
+  .labelColor(()=>'rgba(255,255,255,0.92)').labelResolution(2).labelAltitude(0.013)
+  .onGlobeClick(()=>hideInfo());
+
+/* perf: cap pixel ratio on high-DPI phones */
+try{ world.renderer().setPixelRatio(Math.min(window.devicePixelRatio||1, 2)); }catch(e){}
+
+world.controls().autoRotate = true;
+world.controls().autoRotateSpeed = 0.4;
+world.controls().enableDamping = true;
+world.controls().rotateSpeed = 0.7;
+world.controls().addEventListener('start',()=>{ world.controls().autoRotate=false; });
+
+/* ---- sizing (handles mobile address-bar + rotation) ---- */
+function sizeGlobe(){
+  const w = window.innerWidth;
+  const h = (window.visualViewport && window.visualViewport.height) || window.innerHeight;
+  world.width(w).height(h);
+}
+sizeGlobe();
+world.pointOfView({lat:26, lng:30, altitude:2.35}, 0);
+window.addEventListener('resize', sizeGlobe);
+window.addEventListener('orientationchange', ()=>setTimeout(sizeGlobe,250));
+if(window.visualViewport) window.visualViewport.addEventListener('resize', sizeGlobe);
+
+setTimeout(()=>{ const l=document.getElementById('loading'); if(l) l.style.display='none'; }, 1300);
+
+/* ---------------- Info sheet ---------------- */
+const infoEl = document.getElementById('info');
+const infoBody = document.getElementById('infoBody');
+let activeLegIdx = null;
+
+function showAirport(a){
+  const l = a.outLeg;
+  let html = `<div class="ic-code">${a.code} · Stop ${stopNumber[a.code]}</div>
+    <div class="ic-city">${a.name} — ${a.city}, ${a.country}</div>`;
+  if(l){
+    html += `<div class="ic-tag">Departing flight</div>
+      <div class="ic-row"><span class="k">Flight</span><span>${l.airline} ${l.flight}</span></div>
+      <div class="ic-row"><span class="k">To</span><span>${AIRPORTS[l.to].city} (${l.to})</span></div>
+      <div class="ic-row"><span class="k">Aircraft</span><span>${l.aircraft}</span></div>
+      <div class="ic-row"><span class="k">Departs</span><span>${l.dep}</span></div>
+      <button class="focus-btn" onclick="focusLeg(${LEGS.indexOf(l)})">Show this flight on the globe →</button>`;
+  } else {
+    html += `<div class="ic-tag">Final arrival · journey complete</div>`;
+  }
+  infoBody.innerHTML = html;
+  openInfo();
+  // gently centre the tapped airport
+  world.controls().autoRotate=false;
+  world.pointOfView({lat:a.lat, lng:a.lng, altitude:1.9}, 900);
+}
+
+function showLeg(i){
+  const l = LEGS[i];
+  infoBody.innerHTML = `
+    <div class="ic-code">${l.from} → ${l.to}</div>
+    <div class="ic-city">${AIRPORTS[l.from].city} → ${AIRPORTS[l.to].city}</div>
+    <div class="ic-row"><span class="k">Airline</span><span>${l.airline}</span></div>
+    <div class="ic-row"><span class="k">Flight</span><span>${l.flight}</span></div>
+    <div class="ic-row"><span class="k">Aircraft</span><span>${l.aircraft}</span></div>
+    <div class="ic-row"><span class="k">Depart</span><span>${l.dep}</span></div>
+    <div class="ic-row"><span class="k">Arrive</span><span>${l.arr}</span></div>
+    <div class="ic-row"><span class="k">Duration</span><span>${l.duration}</span></div>
+    ${l.cls?`<div class="ic-tag">${l.cls}</div>`:''}
+    <button class="focus-btn" onclick="focusLeg(${i})">Zoom to this route →</button>`;
+  openInfo();
+  markActiveLeg(i);
+}
+
+function openInfo(){ collapseSheet(); infoEl.classList.add('show'); }
+function hideInfo(){ infoEl.classList.remove('show'); }
+document.getElementById('infoClose').addEventListener('click', hideInfo);
+
+/* ---------------- Camera focus on a leg ---------------- */
+function focusLeg(i){
+  const l = LEGS[i], a=AIRPORTS[l.from], b=AIRPORTS[l.to];
+  const midLat=(a.lat+b.lat)/2;
+  let dLng=b.lng-a.lng; if(Math.abs(dLng)>180) dLng-=Math.sign(dLng)*360;
+  const midLng=a.lng+dLng/2;
+  world.controls().autoRotate=false;
+  world.pointOfView({lat:midLat, lng:midLng, altitude:1.85}, 1100);
+  world.arcStroke(d=> d.idx===i ? 1.5 : 0.45);
+  setTimeout(()=>world.arcStroke(d=> d.idx===i ? 1.1 : 0.7), 1300);
+  markActiveLeg(i);
+}
+function markActiveLeg(i){
+  activeLegIdx=i;
+  document.querySelectorAll('.leg').forEach(b=>b.classList.toggle('active', +b.dataset.idx===i));
+}
+
+/* ---------------- Itinerary list ---------------- */
+const legList=document.getElementById('legList');
+LEGS.forEach((l,i)=>{
+  const btn=document.createElement('button');
+  btn.className='leg'; btn.dataset.idx=i;
+  btn.innerHTML=`
+    <div class="route"><span>${l.from}</span><span class="arrow">✈</span><span>${l.to}</span>
+      <span class="num">${i+1}</span></div>
+    <div class="meta">
+      ${AIRPORTS[l.from].city} → ${AIRPORTS[l.to].city}<br>
+      <strong style="color:#cfe4ff">${l.airline} ${l.flight}</strong> · ${l.aircraft}<br>
+      ${l.dep} → ${l.arr} &nbsp;·&nbsp; ${l.duration}
+    </div>
+    ${l.cls?`<span class="pill">${l.cls}</span>`:''}`;
+  btn.addEventListener('click',()=>{ showLeg(i); focusLeg(i); });
+  legList.appendChild(btn);
+});
+
+/* ---------------- Bottom-sheet open/close + swipe ---------------- */
+const sheet=document.getElementById('sheet');
+function openSheet(){ sheet.classList.add('open'); }
+function collapseSheet(){ sheet.classList.remove('open'); }
+function toggleSheet(){ sheet.classList.toggle('open'); }
+document.getElementById('sheetHead').addEventListener('click', toggleSheet);
+
+// drag the grip up/down
+let dragY=null;
+const grip=document.getElementById('grip');
+grip.addEventListener('touchstart',e=>{ dragY=e.touches[0].clientY; },{passive:true});
+grip.addEventListener('touchmove',e=>{
+  if(dragY==null) return;
+  const dy=e.touches[0].clientY-dragY;
+  if(dy<-26){ openSheet(); dragY=null; }
+  else if(dy>26){ collapseSheet(); dragY=null; }
+},{passive:true});
+grip.addEventListener('touchend',()=>{ dragY=null; });
+grip.addEventListener('click', toggleSheet);
+</script>
+</body>
+</html>
