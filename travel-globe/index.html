@@ -4,6 +4,21 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>My Trip Around the World · Interactive Globe</title>
+<script>
+/* Auto-redirect phones to the touch-optimized version.
+   Escape hatch: open with ?desktop to force this desktop build. */
+(function(){
+  try{
+    var params = new URLSearchParams(location.search);
+    if(params.has('desktop')) return;                 // user forced desktop
+    var smallScreen = window.matchMedia('(max-width: 760px)').matches;
+    var coarse = window.matchMedia('(pointer: coarse)').matches;
+    if(smallScreen || (coarse && Math.min(screen.width, screen.height) <= 820)){
+      location.replace('mobile.html' + location.search);
+    }
+  }catch(e){}
+})();
+</script>
 <style>
   :root{
     --bg:#05070d;

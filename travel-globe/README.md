@@ -4,7 +4,10 @@ An interactive 3D globe visualizing a round-the-world trip, built from the
 booking PDFs. No build step needed — just open the file in a browser.
 
 - **`index.html`** — desktop version (side itinerary panel, hover for details).
-- **`mobile.html`** — phone-optimized version (see *Mobile* below).
+  Phones are auto-redirected to `mobile.html`; add `?desktop` to the URL to
+  force the desktop build.
+- **`mobile.html`** — phone-optimized version (see *Mobile* below). Has a
+  "🖥 Desktop version" link in the header.
 
 ## The trip
 **Garfield A. McIntyre Jr · Aug 24 – Sep 11, 2026 · 5 flights**
