@@ -106,6 +106,19 @@
     border:1px solid var(--accent);background:rgba(94,200,255,0.14);color:var(--accent);
     font-size:14px;font-weight:650;font-family:inherit}
   .info .focus-btn:active{background:rgba(94,200,255,0.25)}
+  /* hotel (gold) variants */
+  .info .ic-code.gold{color:#e7c98a}
+  .info .ic-tag.gold{color:#e7c98a;border-color:rgba(201,169,110,.4)}
+  .info .focus-btn.gold{border-color:#c9a96e;background:rgba(201,169,110,.16);color:#e7c98a}
+  .info .focus-btn.gold:active{background:rgba(201,169,110,.28)}
+  .hbadges{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+  .hbadge{font-size:11px;padding:3px 9px;border-radius:20px;background:rgba(201,169,110,.14);
+    color:#e7c98a;border:1px solid rgba(201,169,110,.35);font-weight:600}
+  .grp{font-size:11px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);
+    margin:6px 4px 10px;font-weight:700}
+  .leg.hotel:active{background:rgba(201,169,110,.12)}
+  .leg.hotel .route{font-size:16px;color:#f0e2c4}
+  .leg .city-tag{font-size:10.5px;color:#c9a96e;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:3px}
 
   .loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     z-index:60;color:var(--muted);font-size:14px;background:var(--bg)}
@@ -128,10 +141,15 @@
 <div class="sheet" id="sheet">
   <div class="grip-wrap" id="grip"><div class="grip"></div></div>
   <div class="sheet-head" id="sheetHead">
-    <h2>Itinerary · tap a flight</h2>
+    <h2>Itinerary · tap to view</h2>
     <span class="chev">▲</span>
   </div>
-  <div class="sheet-body" id="legList"></div>
+  <div class="sheet-body">
+    <div class="grp">✈ Flights</div>
+    <div id="legList"></div>
+    <div class="grp">🏨 Stays</div>
+    <div id="hotelList"></div>
+  </div>
 </div>
 
 <!-- Tap-to-view detail sheet -->
@@ -160,9 +178,32 @@ const LEGS = [
    dep:'02 Sep · 23:40',arr:'03 Sep · 07:40',duration:'~5h 30m',cls:''},
   {from:'SIN',to:'DOH',airline:'Qatar Airways',flight:'QR943',aircraft:'Airbus A350-900',
    dep:'06 Sep · 10:20',arr:'06 Sep · 12:40',duration:'7h 20m',cls:'Business · Qsuite · Seat 3A'},
-  {from:'DOH',to:'ATL',airline:'Qatar Airways',flight:'QR · PNR 9TT858',aircraft:'Airbus A350-1000',
-   dep:'11 Sep · 08:00',arr:'11 Sep · 15:55',duration:'15h 55m',cls:'Business'},
+  {from:'DOH',to:'ATL',airline:'Qatar Airways',flight:'QR0755',aircraft:'Airbus A350-1000',
+   dep:'11 Sep · 08:00',arr:'11 Sep · 15:55',duration:'14h 55m',cls:'Business · Seat 4B'},
 ];
+
+/* Hotels from the trip itinerary graphic. Coords are approximate. */
+const HOTELS = [
+  {city:'London',    name:'London Stay',           prog:'Pre-arranged',
+   dates:'Aug 25 – 27',    nights:'2 nights', notes:'', lat:51.5074, lng:-0.1278,
+   badges:['✓ Sorted']},
+  {city:'Mumbai',    name:'The Oberoi Mumbai',     prog:'Amex FHR',
+   dates:'Aug 27 – 30',    nights:'3 nights', notes:'Marine Drive · sea views', lat:18.9270, lng:72.8230,
+   badges:['✓ Booked','$300 FHR credit','$100 F&B credit','4pm late checkout']},
+  {city:'Mumbai',    name:'Four Seasons Worli',    prog:'Amex FHR',
+   dates:'Aug 30 – Sep 2', nights:'3 nights', notes:'AER Rooftop · near Lower Parel', lat:18.9940, lng:72.8170,
+   badges:['Book after Jul 1','$300 FHR credit','$100 F&B credit','4pm late checkout']},
+  {city:'Singapore', name:'COMO Metropolitan',     prog:'Capital One Premier Collection',
+   dates:'Sep 3 – 6',      nights:'3 nights', notes:'Emerald Room · suite upgrade potential', lat:1.3040, lng:103.8340,
+   badges:['✓ Booked']},
+  {city:'Doha',      name:'Aleph Doha Residences', prog:'Capital One Travel',
+   dates:'Sep 6 – 10',     nights:'4 nights', notes:'Original stay', lat:25.3230, lng:51.5260,
+   badges:['✓ Booked']},
+  {city:'Doha',      name:'Hilton Doha',           prog:'Delta Stays',
+   dates:'Sep 10 – 11',    nights:'1 night',  notes:'Premier King · sea view · $198', lat:25.3270, lng:51.5310,
+   badges:['✓ Booked','$200 Delta Reserve credit']},
+];
+const HOTEL_GOLD = '#c9a96e';
 
 const order = ['ATL','LHR','BOM','SIN','DOH'];
 const stopNumber = {ATL:1,LHR:2,BOM:3,SIN:4,DOH:5};
@@ -171,6 +212,9 @@ const arcs = LEGS.map((l,i)=>({
   endLat:AIRPORTS[l.to].lat,   endLng:AIRPORTS[l.to].lng, leg:l, idx:i
 }));
 const points = order.map(code=>({...AIRPORTS[code], outLeg:LEGS.find(l=>l.from===code)}));
+const airportMarkers = points.map(p=>({...p, kind:'airport'}));
+const hotelMarkers   = HOTELS.map(h=>({lat:h.lat, lng:h.lng, kind:'hotel', hotel:h}));
+const allPoints = airportMarkers.concat(hotelMarkers);
 
 /* ---------------- Globe ---------------- */
 const ACCENT='#5ec8ff', ACCENT2='#ff5e8a';
@@ -188,10 +232,12 @@ const world = Globe()(el)
   .arcStroke(0.7).arcAltitudeAutoScale(0.45)
   .arcDashLength(1).arcDashGap(0).arcDashAnimateTime(0)
   .onArcClick(a=>showLeg(a.idx))
-  .pointsData(points)
-  .pointLat('lat').pointLng('lng').pointColor(()=>ACCENT2)
-  .pointAltitude(0.012).pointRadius(0.55)        /* larger tap target */
-  .onPointClick(p=>showAirport(p))
+  .pointsData(allPoints)
+  .pointLat('lat').pointLng('lng')
+  .pointColor(d=> d.kind==='hotel' ? HOTEL_GOLD : ACCENT2)
+  .pointAltitude(d=> d.kind==='hotel' ? 0.02 : 0.012)
+  .pointRadius(d=> d.kind==='hotel' ? 0.5 : 0.6)  /* larger tap targets */
+  .onPointClick(p=> p.kind==='hotel' ? showHotel(p.hotel) : showAirport(p))
   .ringsData(points).ringLat('lat').ringLng('lng')
   .ringColor(()=>t=>`rgba(255,94,138,${1-t})`)
   .ringMaxRadius(2.6).ringPropagationSpeed(1.4).ringRepeatPeriod(1400)
@@ -242,11 +288,33 @@ function showAirport(a){
   } else {
     html += `<div class="ic-tag">Final arrival · journey complete</div>`;
   }
+  const cityHotels = HOTELS.filter(h=>h.city===a.city);
+  if(cityHotels.length){
+    html += `<div class="ic-tag gold">Staying here</div>` +
+      cityHotels.map(h=>`<div class="ic-row"><span class="k">${h.dates}</span><span>${h.name}</span></div>`).join('');
+  }
   infoBody.innerHTML = html;
   openInfo();
   // gently centre the tapped airport
   world.controls().autoRotate=false;
   world.pointOfView({lat:a.lat, lng:a.lng, altitude:1.9}, 900);
+}
+
+function showHotel(h){
+  infoBody.innerHTML = `
+    <div class="ic-tag gold">🏨 ${h.prog}</div>
+    <div class="ic-code gold">${h.name}</div>
+    <div class="ic-city">${h.city} · ${h.dates} · ${h.nights}</div>
+    ${h.notes?`<div class="ic-row"><span>${h.notes}</span></div>`:''}
+    <div class="hbadges">${h.badges.map(b=>`<span class="hbadge">${b}</span>`).join('')}</div>
+    <button class="focus-btn gold" onclick="focusHotel(${h.lat},${h.lng})">Zoom to this hotel →</button>`;
+  openInfo();
+  world.controls().autoRotate=false;
+  world.pointOfView({lat:h.lat, lng:h.lng, altitude:1.7}, 900);
+}
+function focusHotel(lat,lng){
+  world.controls().autoRotate=false;
+  world.pointOfView({lat:lat, lng:lng, altitude:1.5}, 1000);
 }
 
 function showLeg(i){
@@ -303,6 +371,20 @@ LEGS.forEach((l,i)=>{
     ${l.cls?`<span class="pill">${l.cls}</span>`:''}`;
   btn.addEventListener('click',()=>{ showLeg(i); focusLeg(i); });
   legList.appendChild(btn);
+});
+
+/* ---- Stays list (hotels) ---- */
+const hotelList=document.getElementById('hotelList');
+HOTELS.forEach(h=>{
+  const btn=document.createElement('button');
+  btn.className='leg hotel';
+  btn.innerHTML=`
+    <div class="city-tag">${h.city}</div>
+    <div class="route">${h.name}</div>
+    <div class="meta">${h.dates} · ${h.nights}${h.notes?' · '+h.notes:''}<br>
+      <span style="color:#c9a96e">${h.prog}</span></div>`;
+  btn.addEventListener('click',()=>showHotel(h));
+  hotelList.appendChild(btn);
 });
 
 /* ---------------- Bottom-sheet open/close + swipe ---------------- */

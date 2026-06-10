@@ -98,6 +98,18 @@
   .info-card .ic-row .k{color:var(--muted)}
   .info-card .ic-tag{display:inline-block;font-size:10.5px;color:var(--accent);
     border:1px solid var(--panel-border);border-radius:6px;padding:1px 6px;margin-top:6px}
+  /* hotel (gold) variants */
+  .info-card .ic-code.gold{color:#e7c98a}
+  .info-card .ic-tag.gold{color:#e7c98a;border-color:rgba(201,169,110,.4)}
+  .hbadges{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+  .hbadge{font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(201,169,110,.14);
+    color:#e7c98a;border:1px solid rgba(201,169,110,.35);font-weight:600}
+  .leg.hotel:hover{border-color:rgba(201,169,110,.4);background:rgba(201,169,110,.08)}
+  .leg.hotel.active{border-color:#c9a96e;background:rgba(201,169,110,.13)}
+  .leg.hotel .route{font-size:15px;color:#f0e2c4}
+  .leg .city-tag{font-size:10px;color:#c9a96e;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:3px}
+  .leg .pill.gold{background:rgba(201,169,110,.14);color:#e7c98a}
+  .panel .stays-h2{margin-top:16px}
 
   /* ---- Airport label on globe ---- */
   .ap-label{
@@ -149,14 +161,17 @@
 </div>
 
 <div class="panel" id="panel">
-  <h2>Itinerary — click a flight</h2>
+  <h2>Flights — click to focus</h2>
   <div id="legList"></div>
-  <div class="footer">Hover a glowing point on the globe for airport &amp; flight details.</div>
+  <h2 class="stays-h2">Stays — click to focus</h2>
+  <div id="hotelList"></div>
+  <div class="footer">Hover any glowing point on the globe — pink = airport, gold = hotel — for details.</div>
 </div>
 
 <div class="legend">
   <span><span class="swatch" style="background:#5ec8ff"></span>Flight path</span>
   <span><span class="swatch" style="background:#ff5e8a;width:8px;height:8px;border-radius:50%"></span>Airport</span>
+  <span><span class="swatch" style="background:#c9a96e;width:8px;height:8px;border-radius:50%"></span>Hotel</span>
 </div>
 <div class="hint">Drag to rotate · scroll to zoom</div>
 
@@ -183,9 +198,33 @@ const LEGS = [
    dep:'02 Sep · 23:40',arr:'03 Sep · 07:40',duration:'~5h 30m',cls:'',depTerm:'Mumbai T2',arrTerm:'Changi T1'},
   {from:'SIN',to:'DOH',airline:'Qatar Airways',flight:'QR943',aircraft:'Airbus A350-900',
    dep:'06 Sep · 10:20',arr:'06 Sep · 12:40',duration:'7h 20m',cls:'Business · Qsuite · Seat 3A',depTerm:'Changi T1',arrTerm:'Hamad Intl'},
-  {from:'DOH',to:'ATL',airline:'Qatar Airways',flight:'QR · PNR 9TT858',aircraft:'Airbus A350-1000',
-   dep:'11 Sep · 08:00',arr:'11 Sep · 15:55',duration:'15h 55m',cls:'Business',depTerm:'Hamad Intl',arrTerm:'Atlanta T-I'},
+  {from:'DOH',to:'ATL',airline:'Qatar Airways',flight:'QR0755',aircraft:'Airbus A350-1000',
+   dep:'11 Sep · 08:00',arr:'11 Sep · 15:55',duration:'14h 55m',cls:'Business · Seat 4B',depTerm:'Hamad Intl',arrTerm:'Atlanta T-I'},
 ];
+
+/* ---------------- Hotels (from the trip itinerary graphic) ---------------- */
+/* Coordinates are approximate hotel/city locations. */
+const HOTELS = [
+  {city:'London',    name:'London Stay',           prog:'Pre-arranged',
+   dates:'Aug 25 – 27',     nights:'2 nights', notes:'', lat:51.5074, lng:-0.1278,
+   badges:['✓ Sorted']},
+  {city:'Mumbai',    name:'The Oberoi Mumbai',     prog:'Amex FHR',
+   dates:'Aug 27 – 30',     nights:'3 nights', notes:'Marine Drive · sea views', lat:18.9270, lng:72.8230,
+   badges:['✓ Booked','$300 FHR credit','$100 F&B credit','4pm late checkout']},
+  {city:'Mumbai',    name:'Four Seasons Worli',    prog:'Amex FHR',
+   dates:'Aug 30 – Sep 2',  nights:'3 nights', notes:'AER Rooftop · near Lower Parel', lat:18.9940, lng:72.8170,
+   badges:['Book after Jul 1','$300 FHR credit','$100 F&B credit','4pm late checkout']},
+  {city:'Singapore', name:'COMO Metropolitan',     prog:'Capital One Premier Collection',
+   dates:'Sep 3 – 6',       nights:'3 nights', notes:'Emerald Room · suite upgrade potential', lat:1.3040, lng:103.8340,
+   badges:['✓ Booked']},
+  {city:'Doha',      name:'Aleph Doha Residences', prog:'Capital One Travel',
+   dates:'Sep 6 – 10',      nights:'4 nights', notes:'Original stay', lat:25.3230, lng:51.5260,
+   badges:['✓ Booked']},
+  {city:'Doha',      name:'Hilton Doha',           prog:'Delta Stays',
+   dates:'Sep 10 – 11',     nights:'1 night',  notes:'Premier King · sea view · $198', lat:25.3270, lng:51.5310,
+   badges:['✓ Booked','$200 Delta Reserve credit']},
+];
+const HOTEL_GOLD = '#c9a96e';
 
 /* ---------------- Build derived structures ---------------- */
 const order = ['ATL','LHR','BOM','SIN','DOH']; // unique visit order
@@ -203,6 +242,11 @@ const points = order.map(code=>{
   const outLeg = LEGS.find(l=>l.from===code);
   return {...a, outLeg};
 });
+
+// Combined marker layer: pink airports + gold hotels
+const airportMarkers = points.map(p=>({...p, kind:'airport'}));
+const hotelMarkers   = HOTELS.map(h=>({lat:h.lat, lng:h.lng, kind:'hotel', hotel:h}));
+const allPoints = airportMarkers.concat(hotelMarkers);
 
 /* ---------------- Globe ---------------- */
 const ACCENT = '#5ec8ff', ACCENT2 = '#ff5e8a';
@@ -228,13 +272,13 @@ const world = Globe()
   .arcDashAnimateTime(0)
   .arcLabel(d=>arcTooltip(d.leg))
 
-  // Airport points (glowing rings)
-  .pointsData(points)
+  // Airport points (pink) + hotel points (gold)
+  .pointsData(allPoints)
   .pointLat('lat').pointLng('lng')
-  .pointColor(()=>ACCENT2)
-  .pointAltitude(0.012)
-  .pointRadius(0.32)
-  .pointLabel(d=>pointTooltip(d))
+  .pointColor(d=> d.kind==='hotel' ? HOTEL_GOLD : ACCENT2)
+  .pointAltitude(d=> d.kind==='hotel' ? 0.02 : 0.012)
+  .pointRadius(d=> d.kind==='hotel' ? 0.26 : 0.32)
+  .pointLabel(d=> d.kind==='hotel' ? hotelTooltip(d.hotel) : pointTooltip(d))
 
   // Pulsing rings under each airport
   .ringsData(points)
@@ -283,10 +327,26 @@ function pointTooltip(a){
   } else {
     flightHtml = `<div class="ic-tag">Final arrival · journey complete</div>`;
   }
+  const cityHotels = HOTELS.filter(h=>h.city===a.city);
+  const staysHtml = cityHotels.length
+    ? `<div class="ic-tag gold">Staying here</div>` +
+      cityHotels.map(h=>`<div class="ic-row"><span class="k">${h.dates}</span><span>${h.name}</span></div>`).join('')
+    : '';
   return `<div class="info-card">
     <div class="ic-code">${a.code} · Stop ${stopNumber[a.code]}</div>
     <div class="ic-city">${a.name} — ${a.city}, ${a.country}</div>
     ${flightHtml}
+    ${staysHtml}
+  </div>`;
+}
+
+function hotelTooltip(h){
+  return `<div class="info-card hotel">
+    <div class="ic-tag gold">🏨 ${h.prog}</div>
+    <div class="ic-code gold">${h.name}</div>
+    <div class="ic-city">${h.city} · ${h.dates} · ${h.nights}</div>
+    ${h.notes?`<div class="ic-row"><span>${h.notes}</span></div>`:''}
+    <div class="hbadges">${h.badges.map(b=>`<span class="hbadge">${b}</span>`).join('')}</div>
   </div>`;
 }
 
@@ -333,6 +393,30 @@ function focusLeg(i,btn){
   // briefly emphasise this arc
   world.arcStroke(d=> d.idx===i ? 1.4 : 0.45);
   setTimeout(()=>world.arcStroke(d=> d.idx===i ? 1.0 : 0.6), 1400);
+}
+
+/* ---------------- Stays list (hotels) ---------------- */
+const hotelList = document.getElementById('hotelList');
+HOTELS.forEach(h=>{
+  const btn = document.createElement('button');
+  btn.className='leg hotel';
+  btn.innerHTML = `
+    <div class="city-tag">${h.city}</div>
+    <div class="route">${h.name}</div>
+    <div class="meta">
+      ${h.dates} · ${h.nights}${h.notes?' · '+h.notes:''}<br>
+      <span style="color:#c9a96e">${h.prog}</span>
+    </div>
+    <div class="badges">${h.badges.map(b=>`<span class="pill gold">${b}</span>`).join('')}</div>`;
+  btn.addEventListener('click',()=>focusHotel(h,btn));
+  hotelList.appendChild(btn);
+});
+
+function focusHotel(h,btn){
+  document.querySelectorAll('.leg').forEach(b=>b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  world.controls().autoRotate=false;
+  world.pointOfView({lat:h.lat, lng:h.lng, altitude:1.55}, 1100);
 }
 
 // Resume gentle rotation if the user drags the globe
