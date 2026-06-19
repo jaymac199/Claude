@@ -38,9 +38,14 @@ export default function App() {
       />
 
       <main className="app__main">
-        {market.errorMessage && <DataBanner message={market.errorMessage} />}
+        {market.errorMessage && (
+          <DataBanner message={market.errorMessage} tone="warn" onRetry={market.refresh} />
+        )}
         {!market.hasLiveProvider && (
-          <DataBanner message="No API key set — showing demo data. Add VITE_MARKET_DATA_API_KEY in a .env file for live prices." />
+          <DataBanner
+            tone="info"
+            message="No API key set — showing demo data. Add VITE_MARKET_DATA_API_KEY in a .env file for live prices."
+          />
         )}
 
         <section className="grid grid--cards" aria-label="Stock summaries">

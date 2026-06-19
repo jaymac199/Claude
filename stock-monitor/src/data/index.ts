@@ -1,6 +1,7 @@
 import type { Candle, DataStatus, MarketDataProvider, Quote, TimeRange } from '../types/market';
 import { MarketDataError } from '../types/market';
 import { mockProvider } from './mockProvider';
+import { normalizeCandles, normalizeQuote } from './normalize';
 import { createTwelveDataProvider } from './twelveData';
 
 /**
@@ -88,9 +89,13 @@ function describe(err: unknown): string {
 
 // --- public API -----------------------------------------------------------
 
+async function mockQuote(symbol: string): Promise<Quote> {
+  return normalizeQuote(await mockProvider.getQuote(symbol));
+}
+
 export async function fetchQuote(symbol: string, force = false): Promise<QuoteResult> {
   if (!liveProvider) {
-    return { quote: await mockProvider.getQuote(symbol), status: 'mock' };
+    return { quote: await mockQuote(symbol), status: 'mock' };
   }
 
   const cacheKey = `cache:quote:${activeProviderId}:${symbol}`;
@@ -100,12 +105,16 @@ export async function fetchQuote(symbol: string, force = false): Promise<QuoteRe
   }
 
   try {
-    const quote = await liveProvider.getQuote(symbol);
+    const quote = normalizeQuote(await liveProvider.getQuote(symbol));
     cacheSet(cacheKey, quote);
     return { quote, status: quoteStatus(quote) };
   } catch (err) {
-    return { quote: await mockProvider.getQuote(symbol), status: 'mock', error: describe(err) };
+    return { quote: await mockQuote(symbol), status: 'mock', error: describe(err) };
   }
+}
+
+async function mockSeries(symbol: string, range: TimeRange): Promise<Candle[]> {
+  return normalizeCandles(await mockProvider.getTimeSeries(symbol, range));
 }
 
 export async function fetchSeries(
@@ -114,7 +123,7 @@ export async function fetchSeries(
   force = false,
 ): Promise<SeriesResult> {
   if (!liveProvider) {
-    return { candles: await mockProvider.getTimeSeries(symbol, range), status: 'mock' };
+    return { candles: await mockSeries(symbol, range), status: 'mock' };
   }
 
   const cacheKey = `cache:series:${activeProviderId}:${symbol}:${range}`;
@@ -124,12 +133,12 @@ export async function fetchSeries(
   }
 
   try {
-    const candles = await liveProvider.getTimeSeries(symbol, range);
+    const candles = normalizeCandles(await liveProvider.getTimeSeries(symbol, range));
     cacheSet(cacheKey, candles);
     return { candles, status: 'live' };
   } catch (err) {
     return {
-      candles: await mockProvider.getTimeSeries(symbol, range),
+      candles: await mockSeries(symbol, range),
       status: 'mock',
       error: describe(err),
     };

@@ -19,6 +19,7 @@ import {
   formatDateTime,
   formatPercent,
 } from '../lib/format';
+import { ChartTooltip } from './ChartTooltip';
 import { ChartSkeleton, EmptyState } from './StatusStates';
 import { TimeRangeSelector } from './TimeRangeSelector';
 
@@ -127,16 +128,23 @@ export function PriceChart({ series, range, onRangeChange, loading }: Props) {
                 }
               />
               <Tooltip
-                contentStyle={tooltipStyle}
-                labelFormatter={(t) => formatDateTime(t as number)}
-                formatter={(value: number) => [
-                  mode === 'price' ? formatCurrency(value, stock.currency) : formatPercent(value),
-                  mode === 'price' ? 'Price' : 'Change',
-                ]}
+                cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
+                content={
+                  <ChartTooltip
+                    hideName
+                    formatLabel={(t) => formatDateTime(t)}
+                    formatValue={(value) =>
+                      mode === 'price'
+                        ? formatCurrency(value, stock.currency)
+                        : formatPercent(value)
+                    }
+                  />
+                }
               />
               <Line
                 type="monotone"
                 dataKey={mode}
+                name={mode === 'price' ? 'Price' : '% Change'}
                 stroke={lineColor}
                 strokeWidth={2}
                 dot={false}
@@ -149,11 +157,3 @@ export function PriceChart({ series, range, onRangeChange, loading }: Props) {
     </section>
   );
 }
-
-const tooltipStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: 8,
-  fontSize: 12,
-  color: 'var(--text)',
-};

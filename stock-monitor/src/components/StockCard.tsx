@@ -8,7 +8,9 @@ import {
   formatSignedCurrency,
   formatPercent,
 } from '../lib/format';
+import { ChartTooltip } from './ChartTooltip';
 import { MovementBadge } from './MovementBadge';
+import { RangeBar } from './RangeBar';
 import { CardSkeleton } from './StatusStates';
 
 interface Props {
@@ -53,22 +55,27 @@ export function StockCard({ stock, quote, series, loading }: Props) {
 
       <div className="stock-card__spark">
         {sparkData.length > 1 ? (
-          <ResponsiveContainer width="100%" height={64}>
+          <ResponsiveContainer width="100%" height={68}>
             <AreaChart data={sparkData} margin={{ top: 4, bottom: 4, left: 0, right: 0 }}>
               <defs>
                 <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={color} stopOpacity={0.35} />
+                  <stop offset="0%" stopColor={color} stopOpacity={0.32} />
                   <stop offset="100%" stopColor={color} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <Tooltip
-                contentStyle={tooltipStyle}
-                labelFormatter={() => ''}
-                formatter={(value: number) => [formatCurrency(value, q.currency), 'Price']}
+                cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
+                content={
+                  <ChartTooltip
+                    hideName
+                    formatValue={(v) => formatCurrency(v, q.currency)}
+                  />
+                }
               />
               <Area
                 type="monotone"
                 dataKey="value"
+                name="Price"
                 stroke={color}
                 strokeWidth={2}
                 fill={`url(#${gradientId})`}
@@ -81,17 +88,15 @@ export function StockCard({ stock, quote, series, loading }: Props) {
         )}
       </div>
 
-      <footer className="stock-card__foot">
-        Updated {formatRelative(q.timestamp)}
-      </footer>
+      <RangeBar
+        label="Day range"
+        low={q.dayLow}
+        high={q.dayHigh}
+        value={q.price}
+        currency={q.currency}
+      />
+
+      <footer className="stock-card__foot">Updated {formatRelative(q.timestamp)}</footer>
     </article>
   );
 }
-
-const tooltipStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: 8,
-  fontSize: 12,
-  color: 'var(--text)',
-};

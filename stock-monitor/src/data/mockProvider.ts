@@ -89,10 +89,12 @@ export const mockProvider: MarketDataProvider = {
     const stock = getStock(symbol);
     const intraday = buildSeries(symbol, '1D');
     const yearly = buildSeries(symbol, '1Y');
+    // Seeded so the demo quote is stable across refreshes (no flicker).
+    const rand = mulberry32((stock?.seed ?? 100) * 31 + 7);
 
     const price = intraday[intraday.length - 1].close;
     const open = intraday[0].open;
-    const previousClose = open * (1 - (Math.random() - 0.5) * 0.01);
+    const previousClose = open * (1 - (rand() - 0.5) * 0.01);
     const change = price - previousClose;
     const dayHigh = Math.max(...intraday.map((c) => c.high));
     const dayLow = Math.min(...intraday.map((c) => c.low));

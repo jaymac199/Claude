@@ -14,6 +14,7 @@ import type { SeriesResult } from '../data';
 import { STOCKS } from '../config/stocks';
 import type { TimeRange } from '../types/market';
 import { formatAxisTime, formatDateTime, formatPercent } from '../lib/format';
+import { ChartTooltip } from './ChartTooltip';
 import { ChartSkeleton, EmptyState } from './StatusStates';
 import { TimeRangeSelector } from './TimeRangeSelector';
 
@@ -86,11 +87,15 @@ export function ComparisonChart({ series, range, onRangeChange, loading }: Props
                 tickFormatter={(v) => formatPercent(v, false)}
               />
               <Tooltip
-                contentStyle={tooltipStyle}
-                labelFormatter={(t) => formatDateTime(t as number)}
-                formatter={(value: number, name: string) => [formatPercent(value), name]}
+                cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
+                content={
+                  <ChartTooltip
+                    formatLabel={(t) => formatDateTime(t)}
+                    formatValue={(value) => formatPercent(value)}
+                  />
+                }
               />
-              <Legend />
+              <Legend iconType="plainline" />
               {STOCKS.map((s) => (
                 <Line
                   key={s.symbol}
@@ -111,11 +116,3 @@ export function ComparisonChart({ series, range, onRangeChange, loading }: Props
     </section>
   );
 }
-
-const tooltipStyle: React.CSSProperties = {
-  background: 'var(--surface)',
-  border: '1px solid var(--border)',
-  borderRadius: 8,
-  fontSize: 12,
-  color: 'var(--text)',
-};
